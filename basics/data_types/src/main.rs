@@ -1,10 +1,14 @@
 fn main() {
-    let tup = (1, 2.5, 'c');
+    let mut tup = (1, 2.5, 'c');
 
     // destructuring tuple
-    let (a,b,c) = tup;
+    let (mut a,_b,c) = tup;
 
-    println!("Tuple index 1: {}, index 2: {}", tup.1, tup.2);
+    println!("Tuple index 1: {}, index 2: {}", tup.1, c);
+
+    tup.0 = 123;
+    a = 2;
+    println!("Tuple index 0: {}, a: {}", tup.0, a);
 
     let mut array: [f32; 3] = [1.0, 2.0, 2.3];
     println!("{}", array[0]);
