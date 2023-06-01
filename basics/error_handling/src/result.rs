@@ -102,10 +102,12 @@ fn read_username_from_file_even_shorter() -> Result<String, io::Error> {
     let mut username = String::new();
 
     File::open("hello.txt")?.read_to_string(&mut username)?;
+
+    Ok(username)
 }
 
 fn read_username_from_file_now_use_library() -> Result<String, io::Error> {
-    fs::read_to_string("hello.txt")
+    std::fs::read_to_string("hello.txt")
 }
 
 // the `?` operator implements an early return for a Result type for the function
