@@ -10,12 +10,11 @@ fn main() {
     //   - calling a `run` function in `lib.rs`
     //   - handling the error if `run` returns one
 
-    let args: Vec<String> = env::args().collect();
-    // .args() returns an iterator
-    // .collect() turns the iterator into a vector containing all the values produced by the iterator
-    // .collect creates many kinds of collections, that's why explicit type annotation on `args` is necessary
+    let args = env::args();
+    // .args() returns an instance of std::env::Arg
+    // which implements the Iterator trait over `String` items
 
-    let config = Config::new(&args).unwrap_or_else(|err| {
+    let config = Config::new(args).unwrap_or_else(|err| {
         // this is a closure
         // that runs if Result from new() is Err variant
 

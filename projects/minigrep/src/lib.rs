@@ -11,16 +11,20 @@ pub struct Config {
 
 impl Config {
     // constructor method for a `Config` instance
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("not enough arguments");
-        }
+    pub fn new(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
+        // take ownership of `args` which is any type that implements the `Iterator` trait over `String` items
 
-        let query = args[1].clone();
-        let filepath = args[2].clone();
-        // `args` belong to the `main` scope, and is merely borrowed to this function
-        // so the new `Config` instance can't just take ownership of the `String`s stored in `args`
-        // the easiest, albeit with a little performance overhead, is to just .clone the `String`s
+        args.next(); // first argument is the name of the program, so skip over it
+
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+
+        let filepath = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a filepath"),
+        };
 
         let ignore_case = env::var("IGNORE_CASE").is_ok();
         // .var returns a Result, so just check if it's an Ok variant
@@ -66,15 +70,18 @@ fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
 
 fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
     let query = query.to_lowercase();
-    let mut results = Vec::new();
 
-    for line in contents.lines() {
-        if line.to_lowercase().contains(&query) {
-            results.push(line);
-        }
-    }
+    contents
+        .lines()
+        .filter(|line| line.to_lowercase().contains(&query))
+        .collect()
+    // avoids using a mutable `results` vector
+    // this makes code cleaner
+    // it even makes future implementation of parallel searching possible
+    // because there's no need to maintain mutually exclusive access to `results` vector when pushing to it
 
-    results
+    // this kinda high level abstraction makes it easy to understand what is happening to the `contents` str
+    // because it's not necessary to think about the mutable `results` state
 }
 
 
