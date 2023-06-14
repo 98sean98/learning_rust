@@ -121,7 +121,7 @@ fn main() {
 
     // 3 `Fn` traits
 
-    // 1. `FnOnce` trait: closures that can be called once, i.e. all closures
+    // 1. `FnOnce`: closures that can be called once, i.e. all closures
     // but a closure that moves a captured value out of the body
     // only implements `FnOnce` but not another traits
     // and can only be called once
