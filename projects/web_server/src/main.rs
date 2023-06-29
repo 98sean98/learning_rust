@@ -5,16 +5,22 @@ use std::{
     thread,
     time::Duration,
 };
+use web_server::ThreadPool;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+
+    let pool = ThreadPool::new(4);
+    // create a pool of 4 threads, will be able to process 4 requests concurrently
 
     for stream in listener.incoming() {
         // iterating through connection attempts
 
         let stream = stream.unwrap();
 
-        handle_connection(stream);
+        pool.execute(|| {
+            handle_connection(stream);
+        });
     }
 }
 
