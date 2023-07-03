@@ -1,17 +1,16 @@
 use std::{
     sync::{mpsc, Arc, Mutex},
-    thread
+    thread,
 };
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: Option<mpsc::Sender<Job>>,
 }
 
 // a Job is a closure each thread needs to run
 // so use a type alias for a trait object
 type Job = Box<dyn FnOnce() + Send + 'static>;
-
 
 impl ThreadPool {
     pub fn new(size: usize) -> Self {
@@ -36,8 +35,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-
-        Self { workers, sender }
+        Self {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -47,26 +48,48 @@ impl ThreadPool {
         // send a job down the channel to be queued
         let job = Box::new(f);
 
-        self.sender.send(job).unwrap();
+        self.sender.as_ref().unwrap().send(job).unwrap();
+    }
+}
 
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        drop(self.sender.take());
+        // dropping the sender closes the channel
+        // then, all calls to `.recv()` returns an `Err` variant in the `Result`
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
     }
 }
 
 struct Worker {
     id: usize,
-    thread: thread::JoinHandle<()>
-    // expects each thread to run a closure that returns the unit type `()`
+    thread: Option<thread::JoinHandle<()>>, // when exiting, the thread will be taken out of the `Option` to leave a `None`
+                                            // expects each thread to run a closure that returns the unit type `()`
 }
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Self {
         let thread = thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv().unwrap();
+            let message = receiver.lock().unwrap().recv();
 
-            println!("Worker {id} got a job; executing...");
+            match message {
+                Ok(job) => {
+                    println!("Worker {id} got a job; executing...");
 
-            job();
-
+                    job();
+                }
+                Err(_) => {
+                    println!("Worker {id} disconnected; shutting down...");
+                    break;
+                }
+            }
 
             // compared to this implementation which gives the wrong behaviour
             // mutex lock is held for longer than intended
@@ -93,13 +116,14 @@ impl Worker {
             // which means the lock is held until the `job()` finishes
             // so other workers cannot acquire the lock, and hence no new jobs
             // can be processed concurrently as one that is already running
-
         });
 
-        Self { id, thread }
+        Self {
+            id,
+            thread: Some(thread),
+        }
     }
 }
-
 
 // if the OS cannot create a thread due to limited system resources
 // `thread::spawn` will panic
